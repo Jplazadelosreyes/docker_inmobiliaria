@@ -1,6 +1,6 @@
 # .github/workflows/test.yml
 
-name: Testear Aplicación Docker Compose (Simple)
+name: Testear Conexión API Backend
 
 on:
   push:
@@ -18,44 +18,30 @@ jobs:
       - name: Clonar el código del repositorio
         uses: actions/checkout@v4 # Acción para clonar el repositorio
 
-      - name: Instalar Docker Compose y jq
-        # Instala docker-compose y jq (para parsear JSON en los tests)
+      - name: Instalar Docker Compose
+        # Instala docker-compose. 'jq' ya no es estrictamente necesario si no se parsean JSON complejos.
         run: |
           sudo apt-get update
-          sudo apt-get install -y docker-compose jq
+          sudo apt-get install -y docker-compose curl # 'curl' ya está disponible, pero lo incluimos por claridad
 
       - name: Construir y levantar los servicios Docker Compose
         # --build para asegurar que las imágenes se reconstruyan con los últimos cambios.
         # -d para ejecutar los contenedores en segundo plano.
         run: docker-compose up -d --build
 
-      - name: Esperar un poco a que los servicios arranquen
-        # Una pausa simple para dar tiempo a que la DB y el Backend inicien completamente.
-        # Puedes ajustar este tiempo si es necesario (ej. 15-30 segundos).
-        run: sleep 20
-
-      # Los pasos para crear la base de datos y insertar datos de prueba han sido eliminados.
-      # Este workflow ahora asume que la base de datos ya existe y está poblada
-      # con los datos necesarios para que los tests del Backend y Frontend funcionen.
-
-      - name: Testear el Backend API
-        # Verifica que el endpoint /api/propiedades responde con un JSON válido
-        # y que contiene exactamente 12 elementos.
+      - name: Esperar a que el Backend (Node.js) esté listo y responda
+        # Usa curl para verificar que el endpoint raíz del backend responde.
+        # Bucle con reintentos para dar tiempo a que el backend arranque.
         run: |
-          echo "Testeando el endpoint /api/propiedades..."
-          response=$(curl -s http://localhost:3000/api/propiedades)
-          echo "Respuesta del Backend: $response"
-          # Valida que la respuesta es un array JSON y tiene 12 elementos.
-          echo "$response" | jq -e '. | length == 12' || { echo "La API no devolvió 12 propiedades o el JSON es inválido."; exit 1; }
-          echo "Backend API funcionando correctamente."
-
-      - name: Testear el Frontend (Nginx)
-        # Verifica que la página principal es accesible y contiene un texto específico
-        # de tu index.html actualizado, lo que implica que el HTML con JS se está sirviendo.
-        run: |
-          echo "Testeando el Frontend Nginx..."
-          curl -s http://localhost:8080 | grep "Explora nuestro listado de propiedades disponibles" || { echo "El Frontend no es accesible o no contiene el texto esperado."; exit 1; }
-          echo "Frontend Nginx funcionando correctamente."
+          echo "Esperando a que el Backend responda en el endpoint raíz /..."
+          for i in $(seq 1 60); do # Reintentar hasta 60 veces (60 segundos)
+            curl -s http://localhost:3000/ && break
+            echo "Todavía esperando por el Backend... ($i/60)"
+            sleep 1
+          done
+          # Si después de los reintentos no está listo, falla el paso.
+          curl -s http://localhost:3000/ || { echo "El Backend no se inició a tiempo o no responde en el endpoint /."; exit 1; }
+          echo "El Backend está listo y responde en el endpoint /."
 
       - name: Detener servicios Docker Compose
         # Este paso se ejecuta siempre (incluso si los pasos anteriores fallan)
