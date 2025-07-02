@@ -34,34 +34,9 @@ jobs:
         # Puedes ajustar este tiempo si es necesario (ej. 15-30 segundos).
         run: sleep 20
 
-      - name: Crear la base de datos 'docker_inmobiliaria' si no existe
-        # Conectamos a la base de datos por defecto 'postgres' para crear nuestra base de datos.
-        # El '|| true' evita que el paso falle si la base de datos ya existe.
-        run: |
-          echo "Creando la base de datos 'docker_inmobiliaria' si no existe..."
-          PGPASSWORD=postgres docker exec docker_inmobiliaria-db-1 psql -U postgres -d postgres -c "CREATE DATABASE docker_inmobiliaria;" || true
-          echo "Base de datos verificada/creada."
-        env:
-          # Pasa la contraseña de PostgreSQL como una variable de entorno segura.
-          # Necesitarás configurar este secreto en tu repositorio de GitHub.
-          PGPASSWORD: ${{ secrets.POSTGRES_PASSWORD_TEST }}
-
-      - name: Crear tabla e insertar datos de prueba en PostgreSQL
-        # Conecta a la base de datos 'docker_inmobiliaria' y crea la tabla 'propiedades'
-        # e inserta los 12 datos de prueba.
-        run: |
-          echo "Creando tabla 'propiedades' e insertando datos de prueba..."
-          PGPASSWORD=postgres docker exec docker_inmobiliaria-db-1 psql -U postgres -d docker_inmobiliaria -c "
-            CREATE TABLE IF NOT EXISTS propiedades (id SERIAL PRIMARY KEY, direccion TEXT NOT NULL);
-            INSERT INTO propiedades (direccion) VALUES
-            ('Calle 123, Bogotá'), ('Calle del Sol 5'), ('Avenida de la Luna 10'),
-            ('Plaza Mayor 3'), ('Paseo del Río 22'), ('Callejón de la Flor 7'),
-            ('Ronda de Noche 15'), ('Camino Viejo 1'), ('Calle Nueva 8'),
-            ('Avenida del Mar 4'), ('Travesía del Parque 12'), ('nueva calle 1717');
-          "
-          echo "Datos de prueba insertados."
-        env:
-          PGPASSWORD: ${{ secrets.POSTGRES_PASSWORD_TEST }}
+      # Los pasos para crear la base de datos y insertar datos de prueba han sido eliminados.
+      # Este workflow ahora asume que la base de datos ya existe y está poblada
+      # con los datos necesarios para que los tests del Backend y Frontend funcionen.
 
       - name: Testear el Backend API
         # Verifica que el endpoint /api/propiedades responde con un JSON válido
