@@ -1,0 +1,51 @@
+# Directorios de módulos y dependencias
+node_modules/
+backend/node_modules/ # Específico para el backend
+
+# Archivos de logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+.pnpm-debug.log*
+lerna-debug.log*
+
+# Directorios de caché
+.npm/
+.yarn/
+.pnpm-store/
+.cache/
+
+# Archivos de entorno (si los usaras localmente fuera de Docker Compose)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build artifacts (si tuvieras un paso de build que generara una carpeta 'dist' o 'build')
+dist/
+build/
+out/
+
+# Cobertura de tests
+coverage/
+.nyc_output/
+
+# Archivos de sistema operativo
+.DS_Store # macOS
+Thumbs.db # Windows
+
+# Archivos de IDEs y editores de código
+.idea/             # WebStorm/IntelliJ IDEA
+.vscode/           # VS Code
+*.iml              # IntelliJ IDEA module files
+.project           # Eclipse
+.classpath         # Eclipse
+.settings/         # Eclipse
+
+# Archivos de Docker
+# Los volúmenes nombrados como 'pgdata' son gestionados por Docker y no aparecen en el sistema de archivos local,
+# por lo que no necesitan ser ignorados directamente aquí a menos que los montes como bind mounts.
+# Sin embargo, si generas imágenes Docker localmente, estas no se rastrean por Git,
+# pero es buena práctica no incluir archivos temporales.
+# No necesitamos ignorar Dockerfiles o docker-compose.yml ya que son parte del código fuente.

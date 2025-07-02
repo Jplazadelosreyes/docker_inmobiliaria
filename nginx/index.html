@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InmoApp - Tu Portal Inmobiliario</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            margin: 40px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #555;
+            font-size: 1.1em;
+            margin-bottom: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #e9e9e9;
+        }
+        #loading {
+            font-style: italic;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Bienvenido a InmoApp</h1>
+    <p>Explora nuestro listado de propiedades disponibles. ¡Encuentra tu hogar ideal!</p>
+
+    <h2>Listado de Propiedades</h2>
+    <div id="loading">Cargando propiedades...</div>
+    <table id="properties-table" style="display:none;">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Dirección</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- ESTE CUERPO DEBE ESTAR VACÍO. EL JAVASCRIPT LO LLENARÁ. -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const propertiesTableBody = document.querySelector('#properties-table tbody');
+        const loadingMessage = document.getElementById('loading');
+        const propertiesTable = document.getElementById('properties-table');
+
+        // La URL de tu backend.
+        // Desde el navegador, se accederá a través del puerto expuesto en el host (3000).
+        const backendUrl = 'http://localhost:3000/api/propiedades';
+
+        fetch(backendUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                loadingMessage.style.display = 'none'; // Oculta el mensaje de carga
+                propertiesTable.style.display = 'table'; // Muestra la tabla
+
+                if (data.length === 0) {
+                    propertiesTableBody.innerHTML = '<tr><td colspan="2">No hay propiedades disponibles.</td></tr>';
+                } else {
+                    data.forEach(property => {
+                        const row = propertiesTableBody.insertRow();
+                        const idCell = row.insertCell();
+                        const addressCell = row.insertCell();
+                        idCell.textContent = property.id;
+                        addressCell.textContent = property.direccion;
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error al obtener las propiedades:', error);
+                loadingMessage.textContent = 'Error al cargar las propiedades. Inténtalo de nuevo más tarde.';
+                loadingMessage.style.color = 'red';
+            });
+    });
+</script>
+</body>
+</html>

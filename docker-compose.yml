@@ -1,0 +1,44 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  web:
+    build: ./nginx
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend # Ahora el frontend depende del backend
+    networks:
+      - app-network
+
+  backend:
+    build: ./backend
+    ports:
+      - "3000:3000"
+    environment:
+      # *** ¡IMPORTANTE: Asegúrate de que estas coincidan con tu configuración de DB! ***
+      POSTGRES_USER: postgres    # <--- Cámbiate a 'postgres'
+      POSTGRES_PASSWORD: postgres # <--- Cámbiate a 'postgres'
+      POSTGRES_DB: docker_inmobiliaria
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  db:
+    image: postgres:12 # <--- Vuelve a la versión 12
+    environment:
+      POSTGRES_USER: postgres    # <--- Cámbiate a 'postgres'
+      POSTGRES_PASSWORD: postgres # <--- Cámbiate a 'postgres'
+      POSTGRES_DB: docker_inmobiliaria
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+volumes:
+  pgdata:
+
+networks:
+  app-network:
+    driver: bridge

@@ -1,0 +1,97 @@
+# .github/workflows/test.yml
+
+name: Testear Aplicación Docker Compose
+
+on:
+  # Dispara el workflow en cada push a las ramas 'main'
+  # y en cada Pull Request contra 'main'.
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest # Elige un runner de Ubuntu
+
+    steps:
+      - name: Clonar el código del repositorio
+        uses: actions/checkout@v4 # Acción para clonar el repositorio
+
+      - name: Construir y levantar los servicios Docker Compose
+        # Usa --build para asegurar que las imágenes se reconstruyan con los últimos cambios.
+        # Usa -d para ejecutar los contenedores en segundo plano.
+        run: docker-compose up -d --build
+
+      - name: Esperar a que PostgreSQL esté listo
+        # Utiliza pg_isready dentro del contenedor de la DB para verificar la conexión.
+        # Bucle con reintentos para dar tiempo a que la DB arranque completamente.
+        run: |
+          echo "Esperando a que PostgreSQL acepte conexiones..."
+          for i in $(seq 1 60); do # Reintentar hasta 60 veces (60 segundos)
+            docker exec docker_inmobiliaria-db-1 pg_isready -h localhost -p 5432 -U postgres && break
+            echo "Todavía esperando por PostgreSQL... ($i/60)"
+            sleep 1
+          done
+          # Si después de los reintentos no está listo, falla el paso.
+          docker exec docker_inmobiliaria-db-1 pg_isready -h localhost -p 5432 -U postgres || { echo "PostgreSQL no se inició a tiempo."; exit 1; }
+          echo "PostgreSQL está listo."
+
+      - name: Crear tabla e insertar datos de prueba en PostgreSQL
+        # Ejecuta las sentencias SQL directamente en el contenedor de la DB.
+        # Esto asegura que la base de datos tenga datos para los tests,
+        # ya que app.js ya no inserta automáticamente.
+        run: |
+          echo "Creando tabla 'propiedades' e insertando datos de prueba..."
+          docker exec docker_inmobiliaria-db-1 psql -U postgres -d docker_inmobiliaria -c "
+            CREATE TABLE IF NOT EXISTS propiedades (id SERIAL PRIMARY KEY, direccion TEXT NOT NULL);
+            INSERT INTO propiedades (direccion) VALUES
+            ('Calle 123, Bogotá'), ('Calle del Sol 5'), ('Avenida de la Luna 10'),
+            ('Plaza Mayor 3'), ('Paseo del Río 22'), ('Callejón de la Flor 7'),
+            ('Ronda de Noche 15'), ('Camino Viejo 1'), ('Calle Nueva 8'),
+            ('Avenida del Mar 4'), ('Travesía del Parque 12'), ('nueva calle 1717')
+            ON CONFLICT (id) DO NOTHING; -- Evita re-insertar si la tabla ya tiene datos (poco probable después de down -v)
+          "
+          echo "Datos de prueba insertados."
+
+      - name: Esperar a que el Backend (Node.js) esté listo
+        # Usa curl para verificar que el endpoint raíz del backend responde.
+        # Bucle con reintentos para dar tiempo a que el backend arranque.
+        run: |
+          echo "Esperando a que el Backend responda..."
+          for i in $(seq 1 60); do # Reintentar hasta 60 veces (60 segundos)
+            curl -s http://localhost:3000/ && break
+            echo "Todavía esperando por el Backend... ($i/60)"
+            sleep 1
+          done
+          # Si después de los reintentos no está listo, falla el paso.
+          curl -s http://localhost:3000/ || { echo "El Backend no se inició a tiempo."; exit 1; }
+          echo "El Backend está listo."
+
+      - name: Testear el Frontend (Nginx)
+        # Verifica que Nginx es accesible en el puerto 8080.
+        # La bandera -f hace que curl falle si recibe un error HTTP (4xx, 5xx).
+        run: |
+          echo "Testeando accesibilidad de Nginx..."
+          curl -f http://localhost:8080 || { echo "Nginx no es accesible."; exit 1; }
+          echo "Frontend (Nginx) es accesible."
+
+      - name: Testear la API del Backend (Obtener Propiedades)
+        # Realiza una llamada a la API de propiedades del backend y valida la respuesta JSON.
+        # Requiere 'jq' para parsear JSON, que está disponible en los runners de Ubuntu.
+        run: |
+          echo "Testeando la API del Backend /api/propiedades..."
+          response=$(curl -f http://localhost:3000/api/propiedades)
+          echo "Respuesta de la API del Backend: $response"
+          # Verifica que la respuesta es JSON válido y un array con al menos 12 elementos,
+          # y que el último elemento tiene las claves 'id' y 'direccion'.
+          echo "$response" | jq -e '.[11] | has("id", "direccion")' || { echo "La respuesta de la API del Backend no es un array válido de propiedades o no contiene 12 elementos."; exit 1; }
+          echo "La API del Backend es accesible y devuelve datos válidos."
+
+      - name: Detener servicios Docker Compose
+        # Este paso se ejecuta siempre (incluso si los pasos anteriores fallan)
+        # para asegurar que los recursos se liberen.
+        if: always()
+        run: docker-compose down
